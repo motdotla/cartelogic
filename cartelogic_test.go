@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	NAME      = "People Deck"
-	EMAIL     = "deck0@mailinator.com"
+	EMAIL     = "account0@mailinator.com"
 	API_KEY   = "custom_api_key"
+	FRONT     = "<img src='http://example.com/some-image.png'>"
+	BACK      = "John Doe"
 	REDIS_URL = "redis://127.0.0.1:11001"
 )
 
@@ -22,16 +23,16 @@ func tempredisConfig() tempredis.Config {
 	return config
 }
 
-func TestDecksCreate(t *testing.T) {
+func TestAccountsCreate(t *testing.T) {
 	tempredis.Temp(tempredisConfig(), func(err error) {
 		if err != nil {
 			log.Println(err)
 		}
 
-		deck := map[string]interface{}{"email": EMAIL, "name": NAME}
+		account := map[string]interface{}{"email": EMAIL}
 
 		cartelogic.Setup(REDIS_URL)
-		result, logic_error := cartelogic.DecksCreate(deck)
+		result, logic_error := cartelogic.AccountsCreate(account)
 		if logic_error != nil {
 			t.Errorf("Error", logic_error)
 		}
@@ -39,48 +40,45 @@ func TestDecksCreate(t *testing.T) {
 			t.Errorf("Incorrect email " + result["email"].(string))
 		}
 
-		if result["name"] != NAME {
-			t.Errorf("Incorrect name " + result["name"].(string))
-		}
 		if result["api_key"] == nil {
 			t.Errorf("api_key is nil and should not be.")
 		}
-		if result["id"] == nil {
-			t.Errorf("id is nil and should not be.")
-		}
 	})
 }
 
-func TestDecksCreateCustomApiKey(t *testing.T) {
+func TestAccountsCreateCustomApiKey(t *testing.T) {
 	tempredis.Temp(tempredisConfig(), func(err error) {
 		if err != nil {
 			log.Println(err)
 		}
 
-		deck := map[string]interface{}{"email": EMAIL, "name": NAME, "api_key": API_KEY}
+		account := map[string]interface{}{"email": EMAIL, "api_key": API_KEY}
 
 		cartelogic.Setup(REDIS_URL)
-		result, logic_error := cartelogic.DecksCreate(deck)
+		result, logic_error := cartelogic.AccountsCreate(account)
 		if logic_error != nil {
 			t.Errorf("Error", logic_error)
 		}
-
 		if result["api_key"] != API_KEY {
 			t.Errorf("api_key did not equal " + API_KEY)
+		}
+		exists, _ := cartelogic.KeyExists("accounts/" + API_KEY)
+		if exists != true {
+			t.Errorf("pointer key using api_key did not exist")
 		}
 	})
 }
 
-func TestDecksCreateCustomBlankApiKey(t *testing.T) {
+func TestAccountsCreateCustomBlankApiKey(t *testing.T) {
 	tempredis.Temp(tempredisConfig(), func(err error) {
 		if err != nil {
 			log.Println(err)
 		}
 
-		deck := map[string]interface{}{"email": EMAIL, "name": NAME, "api_key": ""}
+		account := map[string]interface{}{"email": EMAIL, "api_key": ""}
 
 		cartelogic.Setup(REDIS_URL)
-		result, logic_error := cartelogic.DecksCreate(deck)
+		result, logic_error := cartelogic.AccountsCreate(account)
 		if logic_error != nil {
 			t.Errorf("Error", logic_error)
 		}
@@ -91,66 +89,62 @@ func TestDecksCreateCustomBlankApiKey(t *testing.T) {
 	})
 }
 
-func TestDecksCreateBlankName(t *testing.T) {
+func TestAccountsCreateNilEmail(t *testing.T) {
 	tempredis.Temp(tempredisConfig(), func(err error) {
 		if err != nil {
 			log.Println(err)
 		}
 
-		deck := map[string]interface{}{"email": EMAIL, "name": ""}
+		account := map[string]interface{}{}
 
 		cartelogic.Setup(REDIS_URL)
-		_, logic_error := cartelogic.DecksCreate(deck)
+		_, logic_error := cartelogic.AccountsCreate(account)
 		if logic_error.Code != "required" {
 			t.Errorf("Error", err)
 		}
 	})
 }
 
-func TestDecksCreateNilName(t *testing.T) {
+func TestAccountsCreateBlankEmail(t *testing.T) {
 	tempredis.Temp(tempredisConfig(), func(err error) {
 		if err != nil {
 			log.Println(err)
 		}
 
-		deck := map[string]interface{}{"email": EMAIL}
+		account := map[string]interface{}{"email": ""}
 
 		cartelogic.Setup(REDIS_URL)
-		_, logic_error := cartelogic.DecksCreate(deck)
+		_, logic_error := cartelogic.AccountsCreate(account)
 		if logic_error.Code != "required" {
 			t.Errorf("Error", err)
 		}
 	})
 }
 
-func TestDecksCreateBlankEmail(t *testing.T) {
+func TestCardsCreate(t *testing.T) {
 	tempredis.Temp(tempredisConfig(), func(err error) {
 		if err != nil {
 			log.Println(err)
 		}
+		setupAccount(t)
 
-		deck := map[string]interface{}{"email": "", "name": NAME}
-
-		cartelogic.Setup(REDIS_URL)
-		_, logic_error := cartelogic.DecksCreate(deck)
-		if logic_error.Code != "required" {
-			t.Errorf("Error", err)
+		card := map[string]interface{}{"front": FRONT, "back": BACK, "api_key": API_KEY}
+		result, logic_error := cartelogic.CardsCreate(card)
+		if logic_error != nil {
+			t.Errorf("Error", logic_error)
+		}
+		if result["id"] == nil {
+			t.Errorf("Error", result)
 		}
 	})
 }
 
-func TestDecksCreateNilEmail(t *testing.T) {
-	tempredis.Temp(tempredisConfig(), func(err error) {
-		if err != nil {
-			log.Println(err)
-		}
+func setupAccount(t *testing.T) {
+	account := map[string]interface{}{"email": EMAIL, "api_key": API_KEY}
 
-		deck := map[string]interface{}{"name": NAME}
-
-		cartelogic.Setup(REDIS_URL)
-		_, logic_error := cartelogic.DecksCreate(deck)
-		if logic_error.Code != "required" {
-			t.Errorf("Error", err)
-		}
-	})
+	cartelogic.Setup(REDIS_URL)
+	_, logic_error := cartelogic.AccountsCreate(account)
+	if logic_error != nil {
+		t.Errorf("Error", logic_error)
+	}
 }

@@ -19,8 +19,8 @@ import (
 func main() {
   cartelogic.Setup("redis://127.0.0.1:6379")
 
-  deck := map[string]interface{}{"email": "email@myapp.com", "name": "People Deck"}
-  result, logic_error := cartelogic.DecksCreate(deck)
+  account := map[string]interface{}{"email": "email@myapp.com"}
+  result, logic_error := cartelogic.AccountsCreate(account)
   if logic_error != nil {
     fmt.Println(logic_error)
   }
@@ -36,11 +36,18 @@ Connects to Redis.
 cartelogic.Setup("redis://127.0.0.1.6379")
 ```
 
-### DecksCreate
+### AccountsCreate
 
 ```go
-deck := map[string]interface{}{"email": "email@myapp.com", "name": "People Deck"}
-result, logic_error := cartelogic.AppsCreate(deck)
+account := map[string]interface{}{"email": "email@myapp.com"}
+result, logic_error := cartelogic.AccountsCreate(account)
+```
+
+### CardsCreate
+
+```go
+card := map[string]interface{}{"front": "<img src='https://some-url.com/some-image.png'>", "back": "John Doe", "api_key": "your_api_key_you_got_when_registering_an_account"}
+result, logic_error := cartelogic.CardsCreate(card)
 ```
 
 ## Installation
@@ -61,8 +68,9 @@ Cartelogic uses a purposely simple database schema - as simple as possible. If y
 
 Cartelogic uses Redis because of its light footprint, ephemeral nature, and lack of migrations.
 
-* decks - collection of keys with all the deck ids in there. SADD
-* decks/ID - hash with all the data in there. HSET or HMSET
-* decks/ID/cards - collection of keys with all the cards' emails in there. SADD
-* decks/ID/cards/emailaddress HSET or HMSET
++ /accounts - collection of keys with all the account ids in there. SADD
++ /accounts/:email - hash with all the data in there. HSET or HMSET
++ /accounts/:api_key - acts as a pointer. key/value pair where the value points to /accounts/:email
++ /accounts/:email/cards - collection of keys with all the cards' ids in there. SADD
++ /accounts/:email/cards/timestamp HSET or HMSET
 

@@ -12,18 +12,17 @@ import (
 	"log"
 	//"math/rand"
 	"strconv"
+	"strings"
 	"time"
 )
 
+const (
+	BASE_10 = 10
+)
+
 var (
-	DB_ENCRYPTION_SALT        string
-	AUTHCODE_LIFE_IN_MS       int64
-	AUTHCODE_LENGTH           int
-	KEY_EXPIRATION_IN_SECONDS int
-	PBKDF2_HASH_ITERATIONS    int
-	PBKDF2_HASH_BITES         int
-	redisurl                  redisurlparser.RedisURL
-	pool                      *redis.Pool
+	redisurl redisurlparser.RedisURL
+	pool     *redis.Pool
 )
 
 func Setup(redis_url_string string) {
@@ -54,66 +53,107 @@ func Setup(redis_url_string string) {
 	}
 }
 
-func main() {
-}
-
-func DecksCreate(deck map[string]interface{}) (map[string]interface{}, *handshakejserrors.LogicError) {
-	var name string
-	if str, ok := deck["name"].(string); ok {
-		name = str
-	} else {
-		name = ""
-	}
-	if name == "" {
-		logic_error := &handshakejserrors.LogicError{"required", "name", "name cannot be blank"}
-		return deck, logic_error
-	}
-	deck["name"] = name
-
+func AccountsCreate(account map[string]interface{}) (map[string]interface{}, *handshakejserrors.LogicError) {
 	var email string
-	if str, ok := deck["email"].(string); ok {
+	if str, ok := account["email"].(string); ok {
 		email = str
 	} else {
 		email = ""
 	}
 	if email == "" {
 		logic_error := &handshakejserrors.LogicError{"required", "email", "email cannot be blank"}
-		return deck, logic_error
+		return account, logic_error
 	}
-	deck["email"] = email
+	account["email"] = email
 
 	generated_api_key := uniuri.NewLen(20)
-	if deck["api_key"] == nil {
-		deck["api_key"] = generated_api_key
+	if account["api_key"] == nil {
+		account["api_key"] = generated_api_key
 	}
-	if deck["api_key"].(string) == "" {
-		deck["api_key"] = generated_api_key
+	if account["api_key"].(string) == "" {
+		account["api_key"] = generated_api_key
 	}
 
-	current_ms_epoch_time := (time.Now().Unix() * 1000)
-	deck["id"] = strconv.FormatInt(current_ms_epoch_time, 10)
-	key := "decks/" + deck["id"].(string)
+	key := "accounts/" + account["email"].(string)
 
-	err := validateDeckDoesNotExist(key)
+	err := validateAccountDoesNotExist(key)
 	if err != nil {
-		logic_error := &handshakejserrors.LogicError{"not_unique", "name", "name must be unique"}
-		return deck, logic_error
+		logic_error := &handshakejserrors.LogicError{"not_unique", "email", "email must be unique"}
+		return account, logic_error
 	}
-	err = addDeckToDecks(deck["name"].(string))
+	err = addAccountToAccounts(account["email"].(string))
 	if err != nil {
 		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
 		return nil, logic_error
 	}
-	err = saveDeck(key, deck)
+	err = saveAccount(key, account)
 	if err != nil {
 		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
 		return nil, logic_error
 	}
 
-	return deck, nil
+	return account, nil
 }
 
-func validateDeckDoesNotExist(key string) error {
+func CardsCreate(card map[string]interface{}) (map[string]interface{}, *handshakejserrors.LogicError) {
+	front, logic_error := checkFrontPresent(card)
+	if logic_error != nil {
+		return card, logic_error
+	}
+	card["front"] = front
+
+	back, logic_error := checkBackPresent(card)
+	if logic_error != nil {
+		return card, logic_error
+	}
+	card["back"] = back
+
+	email, err := getEmailAssociatedWithApiKey(card["api_key"].(string))
+	if err != nil {
+		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+		return card, logic_error
+	}
+	card["email"] = email
+
+	// set card id
+	current_ms_epoch_time_as_int64 := (time.Now().Unix() * 1000)
+	current_ms_epoch_time := strconv.FormatInt(current_ms_epoch_time_as_int64, 10)
+	card["id"] = current_ms_epoch_time
+
+	account_key := "accounts/" + card["email"].(string)
+	key := account_key + "/cards/" + card["id"].(string)
+
+	err = validateAccountExists(account_key)
+	if err != nil {
+		logic_error := &handshakejserrors.LogicError{"not_found", "account", "account could not be found"}
+		return card, logic_error
+	}
+	err = addCardToCards(account_key, card["email"].(string))
+	if err != nil {
+		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+		return card, logic_error
+	}
+	err = saveCard(key, card)
+	if err != nil {
+		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+		return nil, logic_error
+	}
+
+	return card, nil
+}
+
+func KeyExists(key string) (bool, error) {
+	conn := Conn()
+	defer conn.Close()
+	exists, err := redis.Bool(conn.Do("EXISTS", key))
+	if err != nil {
+		log.Printf("ERROR " + err.Error())
+		return false, err
+	}
+	return exists, nil
+}
+
+func validateAccountExists(key string) error {
 	conn := Conn()
 	defer conn.Close()
 	exists, err := redis.Bool(conn.Do("EXISTS", key))
@@ -121,18 +161,32 @@ func validateDeckDoesNotExist(key string) error {
 		log.Printf("ERROR " + err.Error())
 		return err
 	}
-	if exists == true {
-		err = errors.New("That id already exists.")
+	if !exists {
+		err = errors.New("That account does not exist.")
 		return err
 	}
 
 	return nil
 }
 
-func addDeckToDecks(name string) error {
+func validateAccountDoesNotExist(key string) error {
+	exists, err := KeyExists(key)
+	if err != nil {
+		log.Printf("ERROR " + err.Error())
+		return err
+	}
+	if exists == true {
+		err = errors.New("That email already exists.")
+		return err
+	}
+
+	return nil
+}
+
+func addAccountToAccounts(email string) error {
 	conn := Conn()
 	defer conn.Close()
-	_, err := conn.Do("SADD", "decks", name)
+	_, err := conn.Do("SADD", "accounts", email)
 	if err != nil {
 		return err
 	}
@@ -140,20 +194,105 @@ func addDeckToDecks(name string) error {
 	return nil
 }
 
-func saveDeck(key string, deck map[string]interface{}) error {
+func saveAccount(key string, account map[string]interface{}) error {
 	args := []interface{}{key}
-	for k, v := range deck {
+	for k, v := range account {
 		args = append(args, k, v)
 	}
 
 	conn := Conn()
 	defer conn.Close()
-	_, err := conn.Do("HMSET", args...)
+	pointer_key := "accounts/" + account["api_key"].(string)
+	_, err := conn.Do("SET", pointer_key, key)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Do("HMSET", args...)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func checkFrontPresent(card map[string]interface{}) (string, *handshakejserrors.LogicError) {
+	var front string
+	if str, ok := card["front"].(string); ok {
+		front = str
+	} else {
+		front = ""
+	}
+	if front == "" {
+		logic_error := &handshakejserrors.LogicError{"required", "front", "front cannot be blank"}
+		return front, logic_error
+	}
+
+	return front, nil
+}
+
+func checkBackPresent(card map[string]interface{}) (string, *handshakejserrors.LogicError) {
+	var back string
+	if str, ok := card["back"].(string); ok {
+		back = str
+	} else {
+		back = ""
+	}
+	if back == "" {
+		logic_error := &handshakejserrors.LogicError{"required", "back", "back cannot be blank"}
+		return back, logic_error
+	}
+
+	return back, nil
+}
+
+func addCardToCards(account_key string, email string) error {
+	conn := Conn()
+	defer conn.Close()
+	_, err := conn.Do("SADD", account_key+"/cards", email)
+	if err != nil {
+		log.Printf("ERROR " + err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func saveCard(key string, card map[string]interface{}) error {
+	unixtime := (time.Now().Unix() * 1000)
+	card["id"] = strconv.FormatInt(unixtime, BASE_10)
+
+	args := []interface{}{key}
+	for k, v := range card {
+		args = append(args, k, v)
+	}
+	conn := Conn()
+	defer conn.Close()
+	_, err := conn.Do("HMSET", args...)
+	if err != nil {
+		log.Printf("ERROR " + err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func getEmailAssociatedWithApiKey(api_key string) (string, error) {
+	pointer_key := "accounts/" + api_key
+
+	conn := Conn()
+	defer conn.Close()
+	account_key, err := redis.String(conn.Do("GET", pointer_key))
+	log.Printf(account_key)
+	if err != nil {
+		log.Printf("ERROR " + err.Error())
+		return "", err
+	}
+
+	split_result := strings.Split(account_key, "/")
+	result := split_result[len(split_result)-1]
+
+	return result, nil
 }
 
 func Conn() redis.Conn {
