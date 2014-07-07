@@ -46,7 +46,7 @@ result, logic_error := cartelogic.AccountsCreate(account)
 ### CardsCreate
 
 ```go
-card := map[string]interface{}{"front": "<img src='https://some-url.com/some-image.png'>", "back": "John Doe", "api_key": "your_api_key_you_got_when_registering_an_account"}
+card := map[string]interface{}{"front": "<img src='https://some-url.com/some-image.png'>", "back": "John Doe", "api_key": "your_api_key_you_got_when_creating_an_account"}
 result, logic_error := cartelogic.CardsCreate(card)
 ```
 
@@ -68,9 +68,9 @@ Cartelogic uses a purposely simple database schema - as simple as possible. If y
 
 Cartelogic uses Redis because of its light footprint, ephemeral nature, and lack of migrations.
 
-+ /accounts - collection of keys with all the account ids in there. SADD
-+ /accounts/:email - hash with all the data in there. HSET or HMSET
-+ /accounts/:api_key - acts as a pointer. key/value pair where the value points to /accounts/:email
-+ /accounts/:email/cards - collection of keys with all the cards' ids in there. SADD
-+ /accounts/:email/cards/timestamp HSET or HMSET
++ accounts - collection of keys with all the account ids in there. SADD
++ accounts/:email - hash with all the data in there. HSET or HMSET
++ accounts/:api_key - acts as a pointer. key/value pair where the value points to /accounts/:email
++ accounts/:email/cards - collection of keys with all the cards' ids in there. SADD
++ accounts/:email/cards/timestamp HSET or HMSET
 

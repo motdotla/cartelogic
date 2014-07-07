@@ -1,16 +1,12 @@
 package cartelogic
 
 import (
-	//"bytes"
-	//"crypto/sha1"
-	//"encoding/hex"
 	"errors"
 	"github.com/dchest/uniuri"
 	"github.com/garyburd/redigo/redis"
 	"github.com/handshakejs/handshakejserrors"
 	"github.com/scottmotte/redisurlparser"
 	"log"
-	//"math/rand"
 	"strconv"
 	"strings"
 	"time"
