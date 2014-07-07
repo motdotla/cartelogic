@@ -280,9 +280,10 @@ func saveCard(key string, card map[string]interface{}) error {
 	card["id"] = strconv.FormatInt(unixtime, BASE_10)
 
 	args := []interface{}{key}
-	for k, v := range card {
-		args = append(args, k, v)
-	}
+	args = append(args, "front", card["front"].(string))
+	args = append(args, "back", card["back"].(string))
+	args = append(args, "id", card["id"].(string))
+
 	conn := Conn()
 	defer conn.Close()
 	_, err := conn.Do("HMSET", args...)
