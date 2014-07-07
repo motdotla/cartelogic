@@ -104,9 +104,15 @@ func CardsCreate(card map[string]interface{}) (map[string]interface{}, *handshak
 	}
 	card["back"] = back
 
+	api_key, logic_error := checkApiKeyPresent(card)
+	if logic_error != nil {
+		return card, logic_error
+	}
+	card["api_key"] = api_key
+
 	email, err := getEmailAssociatedWithApiKey(card["api_key"].(string))
 	if err != nil {
-		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+		logic_error := &handshakejserrors.LogicError{"incorrect", "api_key", "the api_key is incorrect"}
 		return card, logic_error
 	}
 	card["email"] = email
@@ -240,6 +246,21 @@ func checkBackPresent(card map[string]interface{}) (string, *handshakejserrors.L
 	}
 
 	return back, nil
+}
+
+func checkApiKeyPresent(card map[string]interface{}) (string, *handshakejserrors.LogicError) {
+	var api_key string
+	if str, ok := card["api_key"].(string); ok {
+		api_key = str
+	} else {
+		api_key = ""
+	}
+	if api_key == "" {
+		logic_error := &handshakejserrors.LogicError{"required", "api_key", "api_key cannot be blank"}
+		return api_key, logic_error
+	}
+
+	return api_key, nil
 }
 
 func addCardToCards(account_key string, email string) error {
