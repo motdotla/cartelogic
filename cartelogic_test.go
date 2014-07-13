@@ -71,6 +71,17 @@ func TestCardsCreate(t *testing.T) {
 	}
 }
 
+func TestCardsAll(t *testing.T) {
+	setup(t)
+	setupAccount(t)
+	setupCard(t)
+
+	_, logic_error := cartelogic.CardsAll(API_KEY)
+	if logic_error != nil {
+		t.Errorf("Error", logic_error)
+	}
+}
+
 func setup(t *testing.T) {
 	err := godotenv.Load()
 	if err != nil {
@@ -90,4 +101,9 @@ func setupAccount(t *testing.T) {
 
 	cartelogic.Setup(os.Getenv("ORCHESTRATE_API_KEY"))
 	cartelogic.AccountsCreate(account)
+}
+
+func setupCard(t *testing.T) {
+	card := map[string]interface{}{"front": FRONT, "back": BACK, "api_key": API_KEY}
+	cartelogic.CardsCreate(card)
 }

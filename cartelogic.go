@@ -89,7 +89,7 @@ func CardsCreate(card map[string]interface{}) (map[string]interface{}, *handshak
 	card["account_id"] = account_id
 
 	key := uuid.New()
-	_, errr := o.Put("cards", key, card)
+	_, errr := o.Put(CARDS, key, card)
 	if errr != nil {
 		logic_error := &handshakejserrors.LogicError{"unknown", "", errr.Error()}
 		return nil, logic_error
@@ -103,21 +103,20 @@ func CardsAll(api_key string) ([]interface{}, *handshakejserrors.LogicError) {
 	if logic_error != nil {
 		return nil, logic_error
 	}
-	results, err := o.Search(CARDS, "account_id:"+account_id, 10, 0)
+	results, err := o.Search(CARDS, "account_id:"+account_id, 100, 0)
 	if err != nil {
 		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
 		return nil, logic_error
 	}
 
-	//cards := []interface{}{}
+	cards := []interface{}{}
 	var values []interface{} = make([]interface{}, len(results.Results))
 	for i, result := range results.Results {
-		//log.Println(result.Value(
 		result.Value(&values[i])
-		//cards = append(cards, card)
+		cards = append(cards, values[i])
 	}
 
-	return values, nil
+	return cards, nil
 }
 
 func getAccountIdFromApiKey(api_key string) (string, *handshakejserrors.LogicError) {
