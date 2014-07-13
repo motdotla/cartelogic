@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-  cartelogic.Setup("redis://127.0.0.1:6379")
+  cartelogic.Setup("your-orchestrate-api-key")
 
   account := map[string]interface{}{"email": "email@myapp.com"}
   result, logic_error := cartelogic.AccountsCreate(account)
@@ -30,10 +30,10 @@ func main() {
 
 ### Setup
 
-Connects to Redis.
+Connect to [Orchestrate.io](http://orchestrate.io/).
 
 ```go
-cartelogic.Setup("redis://127.0.0.1.6379")
+cartelogic.Setup("your-orchestrate-api-key")
 ```
 
 ### AccountsCreate
@@ -59,18 +59,11 @@ go get github.com/scottmotte/cartelogic
 ## Running Tests
 
 ```
-go test -v
+cp .env.example .env
 ```
 
-## Database Schema Details (using Redis)
+Edit the contents of `.env.`
 
-Cartelogic uses a purposely simple database schema - as simple as possible. If you know a simpler approach, even better, please let me know or share as a pull request. 
-
-Cartelogic uses Redis because of its light footprint, ephemeral nature, and lack of migrations.
-
-+ accounts - collection of keys with all the account ids in there. SADD
-+ accounts/:email - hash with all the data in there. HSET or HMSET
-+ accounts/:api_key - acts as a pointer. key/value pair where the value points to /accounts/:email
-+ accounts/:email/cards - collection of keys with all the cards' ids in there. SADD
-+ accounts/:email/cards/timestamp HSET or HMSET
-
+```
+go test -v
+```
