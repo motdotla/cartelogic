@@ -41,7 +41,11 @@ func AccountsCreate(account map[string]interface{}) (map[string]interface{}, *ha
 		account["api_key"] = generated_api_key
 	}
 
-	results, _ := o.Search(ACCOUNTS, "email:"+account["email"].(string), 10, 0)
+	results, err := o.Search(ACCOUNTS, "email:"+account["email"].(string), 10, 0)
+	if err != nil {
+		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+		return nil, logic_error
+	}
 	if results.TotalCount > 0 {
 		logic_error := &handshakejserrors.LogicError{"not_unique", "email", "email must be unique"}
 		return nil, logic_error
