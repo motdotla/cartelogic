@@ -10,6 +10,7 @@ import (
 const (
 	BASE_10  = 10
 	ACCOUNTS = "accounts"
+	CARDS    = "cards"
 )
 
 var (
@@ -80,16 +81,11 @@ func CardsCreate(card map[string]interface{}) (map[string]interface{}, *handshak
 	}
 	card["api_key"] = api_key
 
-	results, err := o.Search(ACCOUNTS, "api_key:"+card["api_key"].(string), 10, 0)
-	if err != nil {
-		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+	account_id, logic_error := getAccountIdFromApiKey(card["api_key"].(string))
+	if logic_error != nil {
 		return nil, logic_error
 	}
-	if results.TotalCount <= 0 {
-		logic_error := &handshakejserrors.LogicError{"incorrect", "api_key", "the api_key is incorrect"}
-		return nil, logic_error
-	}
-	account_id := results.Results[0].Path.Key
+
 	card["account_id"] = account_id
 
 	key := uuid.New()
@@ -100,6 +96,43 @@ func CardsCreate(card map[string]interface{}) (map[string]interface{}, *handshak
 	}
 
 	return card, nil
+}
+
+func CardsAll(api_key string) ([]interface{}, *handshakejserrors.LogicError) {
+	account_id, logic_error := getAccountIdFromApiKey(api_key)
+	if logic_error != nil {
+		return nil, logic_error
+	}
+	results, err := o.Search(CARDS, "account_id:"+account_id, 10, 0)
+	if err != nil {
+		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+		return nil, logic_error
+	}
+
+	//cards := []interface{}{}
+	var values []interface{} = make([]interface{}, len(results.Results))
+	for i, result := range results.Results {
+		//log.Println(result.Value(
+		result.Value(&values[i])
+		//cards = append(cards, card)
+	}
+
+	return values, nil
+}
+
+func getAccountIdFromApiKey(api_key string) (string, *handshakejserrors.LogicError) {
+	results, err := o.Search(ACCOUNTS, "api_key:"+api_key, 10, 0)
+	if err != nil {
+		logic_error := &handshakejserrors.LogicError{"unknown", "", err.Error()}
+		return "", logic_error
+	}
+	if results.TotalCount <= 0 {
+		logic_error := &handshakejserrors.LogicError{"incorrect", "api_key", "the api_key is incorrect"}
+		return "", logic_error
+	}
+	account_id := results.Results[0].Path.Key
+
+	return account_id, nil
 }
 
 func checkFrontPresent(card map[string]interface{}) (string, *handshakejserrors.LogicError) {
